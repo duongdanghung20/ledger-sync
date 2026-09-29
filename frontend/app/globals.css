@@ -1,0 +1,242 @@
+:root {
+  --paper: #fcfcfa;
+  --ink: #161a17;
+  --muted: #6a716b;
+  --rule: #e2e3dd;
+  --accent: #1b6b4c; /* ledger green */
+  --sans: ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131512;
+    --ink: #ecede7;
+    --muted: #9aa096;
+    --rule: #2a2c27;
+    --accent: #4fb489;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #131512;
+  --ink: #ecede7;
+  --muted: #9aa096;
+  --rule: #2a2c27;
+  --accent: #4fb489;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: clamp(3rem, 12vh, 8rem) 1rem 4rem;
+}
+
+.masthead {
+  margin-bottom: 3.5rem;
+}
+
+.wordmark {
+  font-size: clamp(2.4rem, 7vw, 4rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0;
+}
+
+.statement {
+  max-width: 34rem;
+  margin: 1.1rem 0 0;
+  font-size: 1.075rem;
+  color: var(--muted);
+}
+
+/* The ledger: label ..... value, closed by a double rule. */
+.ledger {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.35rem;
+}
+
+.ledger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+}
+
+.ledger-label {
+  font-weight: 560;
+}
+
+.ledger-leader {
+  flex: 1;
+  align-self: stretch;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+
+.ledger-value {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Closing the books: the accounting double underline. */
+.ledger-close {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+}
+
+.ledger-caption {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── Auth: an entry on a ruled ledger page (login, set-password) ─────────── */
+.auth {
+  max-width: 24rem;
+  margin: 0 auto;
+  padding: clamp(3rem, 12vh, 8rem) 1rem 4rem;
+}
+
+.auth-wordmark {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.auth-wordmark:hover {
+  color: var(--ink);
+}
+
+.auth-title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.6rem 0 0;
+}
+
+.auth-intro {
+  margin: 0.7rem 0 2.4rem;
+  color: var(--muted);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.4rem;
+}
+
+.auth-field label {
+  font-weight: 560;
+  font-size: 0.95rem;
+}
+
+/* Fields are ruled lines, not boxes: you write a value on the ledger line. */
+.auth-field input {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0.4rem 0;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.4rem - 1px);
+}
+
+.auth-field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Closing the entry: the accounting double underline above the action. */
+.auth-close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 2.2rem 0 1.6rem;
+}
+
+.auth-submit {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.7rem 1.2rem;
+  width: 100%;
+  cursor: pointer;
+}
+
+.auth-submit:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.auth-submit:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.auth-error {
+  margin: 1rem 0 0;
+  color: #b0402f;
+  font-size: 0.95rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-error {
+    color: #e6947f;
+  }
+}
+
+:root[data-theme="dark"] .auth-error {
+  color: #e6947f;
+}
+
+.auth-note,
+.auth-footer {
+  margin-top: 1.6rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.auth-footer a {
+  color: var(--accent);
+}

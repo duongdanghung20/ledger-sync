@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — Categorization Rule engine (Ledger-Sync ticket 04)</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --panel: #ffffff;
+    --ink: #1c1b1a;
+    --muted: #6b6862;
+    --line: #e7e3dc;
+    --accent: #b4530a;
+    --accent-soft: #fbeee3;
+    --ok: #2f7d4f;
+    --warn: #9a6a00;
+    --none: #9a9a9a;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 32px 20px 80px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; }
+  .intro { background: var(--accent-soft); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+           padding: 14px 16px; border-radius: var(--radius); margin: 12px 0 8px; font-size: 14px; }
+  .intro b { color: var(--accent); }
+  .flag { color: var(--warn); font-size: 13px; margin-top: 8px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 0; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+       padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .amt { font-variant-numeric: tabular-nums; text-align: right; }
+  .neg { color: var(--accent); }
+  .pos { color: var(--ok); }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .tag.rule { background: #eaf3ee; color: var(--ok); }
+  .tag.manual { background: #eee7fb; color: #6b3fa0; }
+  .tag.none { background: #f0efec; color: var(--none); }
+  .via { color: var(--muted); font-size: 12px; }
+  button { font: inherit; font-size: 13px; background: var(--panel); border: 1px solid var(--line);
+           color: var(--ink); padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { color: #fff; opacity: .92; }
+  button.mini { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
+  select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .row-actions { display: flex; gap: 4px; align-items: center; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .rulecond { color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .walk { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .walk p { margin: 0 0 12px; font-size: 14px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px; }
+  .steps button { border-color: var(--accent); }
+  .muted { color: var(--muted); }
+  .inactive td { opacity: .45; }
+  code { background: #f0efec; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Categorization Rule engine — logic prototype</h1>
+  <div class="intro">
+    <b>Question:</b> does this rule model feel right? An <b>Imported Transaction</b> (a bank CSV row) is matched
+    against the Book's ordered <b>Categorization Rules</b> to assign one <b>Account</b> (a QuickBooks ledger account),
+    which becomes the counter-side of its Journal Entry.
+    <b>First-match-wins:</b> rules run in priority order, the first whose conditions <i>all</i> match assigns the Account and evaluation stops.
+    Conditions inside one rule are <b>AND</b>ed — for OR, write two rules. No rule matches → <b>uncategorized</b>, surfaced for
+    a human. A <b>manual override</b> sets the Account directly and beats any rule, even after re-running.
+    <div class="flag">⚑ Design questions to confirm while clicking:
+      (1) amount conditions run on the <b>signed</b> canonical amount (negative = money leaving the account) — intuitive, or match on magnitude?
+      (2) first-match-wins vs. flag-all-conflicts — is a silent priority tiebreak acceptable?
+      (3) should manual override optionally offer "make this a rule"? (deferred by default)</div>
+  </div>
+
+  <h2>Imported Transactions &amp; their categorization</h2>
+  <div class="panel">
+    <table id="txns"></table>
+  </div>
+  <div class="bar">
+    <button class="primary" onclick="run()">Run categorization</button>
+    <button onclick="resetAll()">Reset to samples</button>
+    <span class="muted" id="summary" style="align-self:center"></span>
+  </div>
+
+  <h2>Categorization Rules <span class="muted" style="text-transform:none;letter-spacing:0">(evaluated top → bottom)</span></h2>
+  <div class="panel">
+    <table id="rules"></table>
+  </div>
+
+  <h2>Guided walkthroughs</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="walk">
+    <p id="walkDesc"></p>
+    <div class="steps" id="walkSteps"></div>
+  </div>
+
+  <p class="muted" style="margin-top:28px;font-size:13px">
+    Throwaway prototype for spec ticket 04. The pure engine (<code>categorize</code> / <code>matchCondition</code>)
+    is the liftable part; this page is disposable.
+  </p>
+</div>
+
+<script>
+/* ============================================================
+   LIFTABLE MODULE — pure categorization engine.
+   No DOM, no globals reached from outside. This is the bit
+   the spec validates and the real code adopts.
+   ============================================================ */
+
+// matchCondition(txn, condition) -> bool
+function matchCondition(txn, c) {
+  const v = txn[c.field];
+  switch (c.op) {
+    case 'contains': return String(v).toLowerCase().includes(String(c.value).toLowerCase());
+    case 'equals':   return String(v).toLowerCase() === String(c.value).toLowerCase();
+    case 'gte':      return Number(v) >= Number(c.value);
+    case 'lte':      return Number(v) <= Number(c.value);
+    case 'between':  return Number(v) >= Number(c.value) && Number(v) <= Number(c.value2);
+    default:         return false;
+  }
+}
+
+// categorizeOne(txn, rules) -> { accountId, source, ruleName }
+// rules: active rules, any order; sorted here by ascending priority.
+function categorizeOne(txn, rules) {
+  const ordered = [...rules].filter(r => r.active !== false).sort((a, b) => a.priority - b.priority);
+  for (const rule of ordered) {
+    if (rule.conditions.every(c => matchCondition(txn, c))) {
+      return { accountId: rule.accountId, source: 'rule', ruleName: rule.name };
+    }
+  }
+  return { accountId: null, source: 'none', ruleName: null };
+}
+
+// categorize(txns, rules, overrides) -> results[]
+// overrides: { [txnId]: accountId } — manual override wins over any rule.
+function categorize(txns, rules, overrides) {
+  return txns.map(t => {
+    if (overrides[t.id] != null) {
+      return { txn: t, accountId: overrides[t.id], source: 'manual', ruleName: null };
+    }
+    return { txn: t, ...categorizeOne(t, rules) };
+  });
+}
+
+/* ============================================================
+   THROWAWAY PAGE — state, sample data, rendering, buttons.
+   ============================================================ */
+
+const ACCOUNTS = [
+  { id: 'exp-meals',   name: 'Meals & Entertainment', type: 'Expense' },
+  { id: 'exp-fuel',    name: 'Automobile: Fuel',      type: 'Expense' },
+  { id: 'exp-office',  name: 'Office Supplies',       type: 'Expense' },
+  { id: 'exp-bankfee', name: 'Bank Service Charges',  type: 'Expense' },
+  { id: 'exp-rent',    name: 'Rent Expense',          type: 'Expense' },
+  { id: 'inc-sales',   name: 'Sales Income',          type: 'Income'  },
+];
+const acctName = id => (ACCOUNTS.find(a => a.id === id) || {}).name || '—';
+
+function sampleTxns() {
+  return [
+    { id: 't1', date: '2026-09-02', payee: 'Starbucks',   description: 'STARBUCKS #123 SEATTLE WA',        amount: -6.75  },
+    { id: 't2', date: '2026-09-03', payee: 'Shell',       description: 'SHELL OIL 5721',                   amount: -52.10 },
+    { id: 't3', date: '2026-09-04', payee: 'AMZN Mktp',   description: 'AMZN MKTP US*2X4 AMZN.COM/BILL',   amount: -142.30 },
+    { id: 't4', date: '2026-09-05', payee: 'AMZN Mktp',   description: 'AMZN MKTP US*9K1',                 amount: -18.99 },
+    { id: 't5', date: '2026-09-06', payee: 'Bank',        description: 'MONTHLY SERVICE FEE',              amount: -15.00 },
+    { id: 't6', date: '2026-09-07', payee: 'Acme Corp',   description: 'ACME CORP PAYMENT ACH',            amount: 2500.00 },
+    { id: 't7', date: '2026-09-08', payee: 'Starbucks',   description: 'SBUX ONLINE ORDER',                amount: -12.40 },
+    { id: 't8', date: '2026-09-09', payee: 'Corner Cafe', description: 'CORNER CAFE LLC',                  amount: -9.50  },
+  ];
+}
+
+function sampleRules() {
+  return [
+    { id: 'r0', priority: 5,  name: 'Coffee shops → Office',   accountId: 'exp-office',  active: true,
+      conditions: [{ field: 'description', op: 'contains', value: 'sbux' }] },
+    { id: 'r1', priority: 10, name: 'Starbucks → Meals',       accountId: 'exp-meals',   active: true,
+      conditions: [{ field: 'payee', op: 'contains', value: 'starbucks' }] },
+    { id: 'r2', priority: 20, name: 'Fuel (Shell)',            accountId: 'exp-fuel',    active: true,
+      conditions: [{ field: 'description', op: 'contains', value: 'shell' }] },
+    { id: 'r3', priority: 30, name: 'Large Amazon → Office',   accountId: 'exp-office',  active: true,
+      conditions: [{ field: 'description', op: 'contains', value: 'amzn' }, { field: 'amount', op: 'lte', value: -100 }] },
+    { id: 'r4', priority: 40, name: 'Bank fees',               accountId: 'exp-bankfee', active: true,
+      conditions: [{ field: 'description', op: 'contains', value: 'service fee' }] },
+    { id: 'r5', priority: 50, name: 'Customer payments → Sales', accountId: 'inc-sales', active: true,
+      conditions: [{ field: 'amount', op: 'gte', value: 1000 }] },
+  ];
+}
+
+let txns, rules, overrides, results;
+
+function resetAll() {
+  txns = sampleTxns();
+  rules = sampleRules();
+  overrides = {};
+  run();
+}
+
+function run() {
+  results = categorize(txns, rules, overrides);
+  render();
+}
+
+function setOverride(txnId, accountId) {
+  if (accountId === '') delete overrides[txnId];
+  else overrides[txnId] = accountId;
+  run();
+}
+
+function bumpRule(id, dir) {
+  const sorted = [...rules].sort((a, b) => a.priority - b.priority);
+  const i = sorted.findIndex(r => r.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= sorted.length) return;
+  const p = sorted[i].priority; sorted[i].priority = sorted[j].priority; sorted[j].priority = p;
+  run();
+}
+
+function toggleRule(id) {
+  const r = rules.find(r => r.id === id);
+  r.active = r.active === false ? true : false;
+  run();
+}
+
+function condText(c) {
+  if (c.op === 'between') return `${c.field} between ${c.value}…${c.value2}`;
+  const ops = { contains: 'contains', equals: '=', gte: '≥', lte: '≤' };
+  return `${c.field} ${ops[c.op]} "${c.value}"`;
+}
+
+function render() {
+  // transactions
+  const rowsById = Object.fromEntries(results.map(r => [r.txn.id, r]));
+  const tt = document.getElementById('txns');
+  tt.innerHTML = `<tr><th>Date</th><th>Payee / description</th><th class="amt">Amount</th><th>Account</th><th>Via</th><th>Manual override</th></tr>` +
+    txns.map(t => {
+      const r = rowsById[t.id];
+      const amtCls = t.amount < 0 ? 'neg' : 'pos';
+      const tag = r.source === 'rule' ? '<span class="tag rule">rule</span>'
+                : r.source === 'manual' ? '<span class="tag manual">manual</span>'
+                : '<span class="tag none">uncategorized</span>';
+      const via = r.source === 'rule' ? `<span class="via">${r.ruleName}</span>`
+                : r.source === 'manual' ? `<span class="via">set by hand</span>` : '';
+      const opts = `<option value="">— none —</option>` +
+        ACCOUNTS.map(a => `<option value="${a.id}" ${overrides[t.id] === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+      return `<tr>
+        <td class="muted">${t.date}</td>
+        <td><b>${t.payee}</b><br><span class="muted" style="font-size:12px">${t.description}</span></td>
+        <td class="amt ${amtCls}">${t.amount.toFixed(2)}</td>
+        <td>${acctName(r.accountId)} ${tag}</td>
+        <td>${via}</td>
+        <td><select onchange="setOverride('${t.id}', this.value)">${opts}</select></td>
+      </tr>`;
+    }).join('');
+
+  const n = results.length;
+  const byRule = results.filter(r => r.source === 'rule').length;
+  const byManual = results.filter(r => r.source === 'manual').length;
+  const none = results.filter(r => r.source === 'none').length;
+  document.getElementById('summary').textContent =
+    `${n} transactions — ${byRule} by rule, ${byManual} manual, ${none} uncategorized`;
+
+  // rules
+  const sorted = [...rules].sort((a, b) => a.priority - b.priority);
+  const rt = document.getElementById('rules');
+  rt.innerHTML = `<tr><th>#</th><th>Rule</th><th>Conditions (all must match)</th><th>Assigns</th><th>Order</th></tr>` +
+    sorted.map((r, i) => `<tr class="${r.active === false ? 'inactive' : ''}">
+        <td class="muted">${i + 1}</td>
+        <td><b>${r.name}</b></td>
+        <td class="rulecond">${r.conditions.map(condText).join(' <b>AND</b> ')}</td>
+        <td>${acctName(r.accountId)}</td>
+        <td><div class="row-actions">
+          <button class="mini" onclick="bumpRule('${r.id}', -1)">↑</button>
+          <button class="mini" onclick="bumpRule('${r.id}', 1)">↓</button>
+          <button class="mini" onclick="toggleRule('${r.id}')">${r.active === false ? 'enable' : 'disable'}</button>
+        </div></td>
+      </tr>`).join('');
+}
+
+/* ---- guided walkthroughs ---- */
+const WALKS = [
+  {
+    name: 'Happy path',
+    desc: 'The simplest case: one transaction, one clear rule. Starbucks → Meals & Entertainment. Reset, then run and watch t1 get a "rule" tag.',
+    steps: [['Reset to samples', resetAll], ['Run categorization', run]],
+  },
+  {
+    name: 'First-match-wins & reorder',
+    desc: 'Transaction t7 ("SBUX ONLINE ORDER", payee Starbucks) matches TWO rules: "Coffee shops → Office" (priority 5) and "Starbucks → Meals" (priority 10). Lowest priority wins → Office. Then bump the Starbucks rule to the top and re-run: now it wins → Meals. This is the silent tiebreak to confirm.',
+    steps: [
+      ['1. Reset', resetAll],
+      ['2. Run — t7 becomes Office', run],
+      ['3. Move "Starbucks → Meals" to top', () => { bumpRule('r1', -1); }],
+      ['4. …and again above Coffee', () => { bumpRule('r1', -1); }],
+      ['5. Run — t7 now Meals', run],
+    ],
+  },
+  {
+    name: 'AND conditions',
+    desc: '"Large Amazon → Office" needs description contains "amzn" AND amount ≤ -100. t3 (-142.30) matches both → Office. t4 (-18.99) matches "amzn" but fails the amount → no rule → uncategorized. Watch t3 vs t4 diverge.',
+    steps: [['1. Reset', resetAll], ['2. Run', run]],
+  },
+  {
+    name: 'Unmatched → manual',
+    desc: 't8 ("Corner Cafe") matches no rule and lands uncategorized. A human assigns it Meals via the override dropdown — done here by button.',
+    steps: [
+      ['1. Reset', resetAll],
+      ['2. Run — t8 uncategorized', run],
+      ['3. Human sets t8 → Meals', () => setOverride('t8', 'exp-meals')],
+    ],
+  },
+  {
+    name: 'Manual beats rule (survives re-run)',
+    desc: 't1 auto-categorizes to Meals by rule. The bookkeeper disagrees and sets it to Office. Re-running categorization must NOT clobber that manual choice — confirm t1 stays Office and keeps the "manual" tag.',
+    steps: [
+      ['1. Reset', resetAll],
+      ['2. Run — t1 = Meals (rule)', run],
+      ['3. Override t1 → Office', () => setOverride('t1', 'exp-office')],
+      ['4. Re-run — t1 stays Office (manual)', run],
+    ],
+  },
+];
+
+let activeWalk = 0;
+function renderTabs() {
+  const t = document.getElementById('tabs');
+  t.innerHTML = WALKS.map((w, i) => `<button class="${i === activeWalk ? 'active' : ''}" onclick="selectWalk(${i})">${w.name}</button>`).join('');
+  const w = WALKS[activeWalk];
+  document.getElementById('walkDesc').textContent = w.desc;
+  const s = document.getElementById('walkSteps');
+  s.innerHTML = '';
+  w.steps.forEach(([label, fn]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.onclick = fn;
+    s.appendChild(b);
+  });
+}
+function selectWalk(i) { activeWalk = i; renderTabs(); }
+
+resetAll();
+renderTabs();
+</script>
+</body>
+</html>

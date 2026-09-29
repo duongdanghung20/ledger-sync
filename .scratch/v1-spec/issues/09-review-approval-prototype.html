@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — Review &amp; approval UI (ticket 09)</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #1a2b3c;         /* text / ledger ink */
+    --muted: #647184;
+    --paper: #ffffff;
+    --surface: #f6f7f4;     /* cool ledger paper, deliberately not cream */
+    --rule: #d9dcd6;        /* hairline column rules */
+    --rule-strong: #b7bcb2;
+    --in: #1f7a4d;          /* money in / credit */
+    --out: #b3261e;         /* money out / debit */
+    --accent: #3730a3;      /* indigo — primary action, kept off the money colours */
+    --accent-soft: #ecebfa;
+    --warn-bg: #fbeaea;
+    --ok-bg: #e6f2ec;
+    --pending-bg: #fff4d6;
+    --posted: #1f7a4d;
+    --pending: #9a6b00;
+    --failed: #b3261e;
+    --sh: 0 1px 2px rgba(20,30,45,.08), 0 2px 8px rgba(20,30,45,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7ebf0; --muted: #97a1b0; --paper: #131820; --surface: #0f141b;
+      --rule: #2a323d; --rule-strong: #3a4552; --accent: #a5a3f5; --accent-soft: #23233a;
+      --in: #5fcf93; --out: #f0857c; --warn-bg: #3a1f1e; --ok-bg: #16281f;
+      --pending-bg: #2e2409; --posted: #5fcf93; --pending: #d9ad4e; --failed: #f0857c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface); color: var(--ink);
+    font: 14px/1.5 -apple-system, system-ui, "Segoe UI", sans-serif;
+    padding-bottom: 5rem;
+  }
+  .num { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+         font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .in { color: var(--in); } .out { color: var(--out); }
+  .banner { background: #7c2d12; color: #fff; padding: .35rem .8rem; font-size: 12px; font-weight: 600; }
+  header.app {
+    background: var(--paper); border-bottom: 1px solid var(--rule);
+    padding: .7rem 1.1rem; display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+  }
+  header.app h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  header.app .ctx { color: var(--muted); font-size: 13px; }
+  header.app .who { margin-left: auto; color: var(--muted); font-size: 12px; }
+  main { padding: 1.1rem; max-width: 1180px; margin: 0 auto; }
+  h2.v { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 .8rem; }
+  button {
+    font: inherit; font-size: 13px; padding: .38rem .72rem; cursor: pointer;
+    border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink);
+    border-radius: 6px;
+  }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible, [tabindex]:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:disabled { opacity: .4; cursor: not-allowed; border-color: var(--rule-strong); background: var(--muted); }
+  button.ghost { background: transparent; }
+  select { font: inherit; font-size: 13px; padding: .2rem .3rem; border: 1px solid var(--rule-strong);
+           border-radius: 5px; background: var(--paper); color: var(--ink); max-width: 220px; }
+  select.warn { border-color: var(--out); background: var(--warn-bg); }
+  .pill { font-size: 11px; padding: .05rem .45rem; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .st-imported   { background: var(--surface); color: var(--muted); border: 1px solid var(--rule); }
+  .st-categorized{ background: var(--accent-soft); color: var(--accent); }
+  .st-approved   { background: var(--ok-bg); color: var(--in); }
+  .st-posted     { background: var(--ok-bg); color: var(--posted); }
+  .st-pending    { background: var(--pending-bg); color: var(--pending); }
+  .st-failed     { background: var(--warn-bg); color: var(--failed); }
+  .srcflag { font-size: 11px; color: var(--muted); }
+  .srcflag.manual { color: var(--accent); }
+  code { font-family: ui-monospace, monospace; background: color-mix(in srgb, var(--ink) 8%, transparent);
+         padding: 0 .25rem; border-radius: 3px; font-size: 12px; }
+  .muted { color: var(--muted); }
+
+  /* ---- Variant A: ledger table ---- */
+  .tabs { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .7rem; }
+  .tab { padding: .3rem .6rem; border-radius: 6px 6px 0 0; border: 1px solid transparent;
+         cursor: pointer; font-size: 13px; color: var(--muted); }
+  .tab[aria-selected="true"] { color: var(--ink); border-color: var(--rule); border-bottom-color: var(--paper);
+         background: var(--paper); font-weight: 600; }
+  .tab .c { font-variant-numeric: tabular-nums; opacity: .7; }
+  table.ledger { border-collapse: collapse; width: 100%; background: var(--paper);
+                 box-shadow: var(--sh); border-radius: 8px; overflow: hidden; }
+  table.ledger th { text-align: left; font-size: 11.5px; text-transform: none; color: var(--muted);
+                    font-weight: 600; padding: .55rem .6rem; border-bottom: 1px solid var(--rule-strong); background: var(--surface); }
+  table.ledger td { padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  table.ledger tr:last-child td { border-bottom: none; }
+  table.ledger tr.sel td { background: var(--accent-soft); }
+  .desc { font-weight: 500; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .bulkbar {
+    position: fixed; left: 50%; bottom: 4.2rem; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); border-radius: 10px; box-shadow: var(--sh);
+    padding: .55rem .8rem; display: flex; gap: .8rem; align-items: center; font-size: 13px; z-index: 40;
+  }
+  .bulkbar button { border-color: transparent; background: rgba(255,255,255,.14); color: #fff; }
+  .bulkbar button.primary { background: #fff; color: var(--ink); }
+  .bulkbar .bal { font-variant-numeric: tabular-nums; }
+
+  /* ---- Variant B: focus queue ---- */
+  .queue { display: grid; grid-template-columns: 260px 1fr; gap: 1.1rem; align-items: start; }
+  .qlist { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .qitem { padding: .5rem .7rem; border-bottom: 1px solid var(--rule); cursor: pointer; display: flex;
+           justify-content: space-between; gap: .5rem; align-items: baseline; }
+  .qitem:hover { background: var(--surface); }
+  .qitem[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .qcounts { display: flex; gap: .5rem; padding: .5rem .7rem; border-top: 1px solid var(--rule); flex-wrap: wrap; }
+  .card { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--sh); padding: 1.2rem 1.3rem; }
+  .card .big { font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
+  .card .meta { color: var(--muted); font-size: 13px; margin-top: .1rem; }
+  .je { margin: 1.1rem 0; border: 1px solid var(--rule-strong); border-radius: 8px; overflow: hidden; }
+  .je table { border-collapse: collapse; width: 100%; }
+  .je th { font-size: 11px; color: var(--muted); font-weight: 600; text-align: left; padding: .4rem .7rem; background: var(--surface); }
+  .je th.amt, .je td.amt { text-align: right; }
+  .je td { padding: .45rem .7rem; border-top: 1px solid var(--rule); }
+  .je tr.total td { border-top: 2px solid var(--rule-strong); font-weight: 600; }
+  .je .balflag { color: var(--in); font-weight: 600; }
+  .approvebar { display: flex; gap: .6rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+  kbd { font-family: ui-monospace, monospace; font-size: 11px; border: 1px solid var(--rule-strong);
+        border-bottom-width: 2px; border-radius: 4px; padding: 0 .3rem; }
+
+  /* ---- Variant C: pipeline board ---- */
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: .7rem; align-items: start; }
+  .lane { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-height: 120px; }
+  .lane > h3 { font-size: 12px; margin: 0; padding: .55rem .7rem; border-bottom: 1px solid var(--rule);
+               display: flex; justify-content: space-between; align-items: center; font-weight: 650; }
+  .lane.failed > h3 { color: var(--failed); }
+  .lane .n { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
+  .lane .cards { padding: .5rem; display: flex; flex-direction: column; gap: .5rem; }
+  .kcard { border: 1px solid var(--rule); border-radius: 7px; padding: .5rem .6rem; background: var(--surface); }
+  .kcard .kd { font-size: 12px; font-weight: 500; }
+  .kcard .krow { display: flex; justify-content: space-between; gap: .4rem; align-items: baseline; }
+  .kcard button { padding: .2rem .5rem; font-size: 12px; margin-top: .35rem; }
+  .kcard .err { font-size: 11px; color: var(--failed); margin-top: .25rem; }
+  .laneaction { padding: .4rem .5rem; border-top: 1px solid var(--rule); }
+  .laneaction button { width: 100%; font-size: 12px; }
+
+  /* ---- switcher ---- */
+  .switcher {
+    position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); border-radius: 999px; box-shadow: var(--sh);
+    display: flex; align-items: center; gap: .1rem; padding: .25rem; z-index: 50; font-size: 13px;
+  }
+  .switcher button { background: transparent; border: none; color: #fff; padding: .3rem .55rem; border-radius: 999px; }
+  .switcher button:hover { background: rgba(255,255,255,.16); }
+  .switcher .label { padding: 0 .7rem; font-weight: 600; min-width: 190px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 720px) {
+    .queue { grid-template-columns: 1fr; }
+    .board { grid-template-columns: 1fr 1fr; }
+    header.app .who { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE — throwaway. Answers ticket 09 (review &amp; approval UI). 3 structural variants, switch at bottom. Not production code. Data in-memory; actions reset on reload.</div>
+
+<header class="app">
+  <h1>Review &amp; approve</h1>
+  <span class="ctx">Book <strong>Acme Coffee LLC</strong> · Bank Account <strong>Chase Checking</strong> → Account <code>Chase Checking (1001)</code></span>
+  <span class="who">Signed in: Dana (Bookkeeper)</span>
+</header>
+
+<main id="root"></main>
+
+<nav class="switcher" aria-label="prototype variant switcher">
+  <button id="prev" aria-label="previous variant">◀</button>
+  <span class="label" id="vlabel"></span>
+  <button id="next" aria-label="next variant">▶</button>
+</nav>
+
+<script>
+/* ============================================================
+   Ticket 09 — review/approval surface, 3 structural variants.
+   Grounded in decisions 03/04/06/08:
+   - Imported Transaction states: imported → categorized → approved → posted
+     (+ failed Sync Status). "categorized" = an Account assigned by rule
+     (first-match-wins) or manual override; approving MATERIALISES a balanced
+     2-line Journal Entry (ticket 06); pushing sets Sync Status (ticket 08).
+   - Account = the QuickBooks ledger "category" side. Bank Account maps 1:1 to
+     the cash-side Account (Chase Checking (1001)).
+   - Sign rule (06): amount<0 (out) → Dr category / Cr cash |amt|;
+     amount>0 (in) → Dr cash / Cr category |amt|.  abs both sides, opposite
+     PostingType ⇒ debits==credits by construction.
+   ============================================================ */
+
+const CASH = "Chase Checking (1001)";  // Bank Account's mapped Account (06)
+
+// Accounts offered as categorisation targets (from CoA mirror, 03: Active only, excl AR/AP)
+const ACCOUNTS = [
+  "Meals & Entertainment", "Sales Income", "Rent Expense",
+  "Software & Subscriptions", "Utilities", "Payroll Expenses",
+  "Office Supplies", "Travel", "Bank Charges (inactive)"
+];
+
+// Sample Imported Transactions. state ∈ imported|categorized|approved|posted|failed.
+// account = target Account (null = uncategorized). src = how it got categorised.
+let TXNS = [
+  { id: 1, date: "2025-03-12", desc: "STARBUCKS STORE #123", payee: "Starbucks", amount: -6.75,
+    account: "Meals & Entertainment", src: "rule", rule: "STARBUCKS → Meals & Entertainment", state: "categorized" },
+  { id: 2, date: "2025-03-12", desc: "ACH PAYROLL RUN GUSTO", payee: "Gusto", amount: -4200.00,
+    account: null, src: "none", rule: null, state: "imported" },
+  { id: 3, date: "2025-03-13", desc: "STRIPE PAYOUT", payee: "Stripe", amount: 9000.00,
+    account: "Sales Income", src: "rule", rule: "STRIPE → Sales Income", state: "categorized" },
+  { id: 4, date: "2025-03-14", desc: "WEWORK 205 HUDSON", payee: "WeWork", amount: -2000.00,
+    account: "Rent Expense", src: "manual", rule: null, state: "categorized" },
+  { id: 5, date: "2025-03-14", desc: "AWS EMEA SARL", payee: "Amazon Web Services", amount: -312.40,
+    account: "Software & Subscriptions", src: "rule", rule: "AWS → Software & Subscriptions", state: "categorized" },
+  { id: 6, date: "2025-03-15", desc: "COMCAST BUSINESS", payee: "Comcast", amount: -149.99,
+    account: "Utilities", src: "rule", rule: "COMCAST → Utilities", state: "approved" },
+  { id: 7, date: "2025-03-10", desc: "OFFICE DEPOT #55", payee: "Office Depot", amount: -83.20,
+    account: "Office Supplies", src: "rule", rule: "OFFICE DEPOT → Office Supplies", state: "posted", qbo: "JE-1042" },
+  { id: 8, date: "2025-03-09", desc: "DELTA AIR LINES", payee: "Delta", amount: -540.00,
+    account: "Travel", src: "manual", rule: null, state: "posted", qbo: "JE-1041" },
+  { id: 9, date: "2025-03-11", desc: "MONTHLY SERVICE FEE", payee: "Chase", amount: -30.00,
+    account: "Bank Charges (inactive)", src: "rule", rule: "SERVICE FEE → Bank Charges", state: "failed",
+    error: "Account 'Bank Charges' is inactive in QuickBooks — re-map or reactivate (see ticket 03)." },
+  { id: 10, date: "2025-03-15", desc: "GUSTO SOFTWARE FEE", payee: "Gusto", amount: -45.00,
+    account: "Payroll Expenses", src: "rule", rule: "GUSTO FEE → Payroll Expenses", state: "categorized" }
+];
+
+const fmt = n => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtDate = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", {month:"short", day:"numeric"});
+
+// ---- money path: build the 2 balanced journal lines (ticket 06 sign rule) ----
+function journalLines(txn) {
+  if (txn.amount === 0) throw new Error("A=0 rejected (ticket 06)");
+  const abs = Math.abs(txn.amount);
+  const cat = txn.account;
+  return txn.amount < 0
+    ? [ { acct: cat,  dr: abs, cr: 0 }, { acct: CASH, dr: 0, cr: abs } ]   // outflow
+    : [ { acct: CASH, dr: abs, cr: 0 }, { acct: cat,  dr: 0, cr: abs } ];  // inflow
+}
+// self-check: every categorised sample must balance
+(function selfCheck(){
+  for (const t of TXNS) {
+    if (!t.account) continue;
+    const [a,b] = journalLines(t);
+    console.assert(a.dr + b.dr === a.cr + b.cr, "unbalanced JE for txn " + t.id);
+  }
+  console.log("journalLines self-check ok");
+})();
+
+const STATE_ORDER = ["imported","categorized","approved","posted","failed"];
+const STATE_LABEL = { imported:"Uncategorised", categorized:"Categorised", approved:"Approved", posted:"Posted", failed:"Failed" };
+function statePill(s){ return `<span class="pill st-${s}">${STATE_LABEL[s]}</span>`; }
+function count(s){ return TXNS.filter(t => t.state === s).length; }
+
+// ---- shared mutations (in-memory; no persistence — prototype rule 3) ----
+function setAccount(id, acct){
+  const t = TXNS.find(x=>x.id===id); if(!t) return;
+  t.account = acct || null;
+  t.src = acct ? "manual" : "none";           // manual override beats rules (04)
+  t.rule = null;
+  t.state = acct ? (t.state==="imported" ? "categorized" : t.state) : "imported";
+  render();
+}
+function approve(id){
+  const t = TXNS.find(x=>x.id===id);
+  if(t && t.account && (t.state==="categorized")) t.state="approved"; // materialises JE (06)
+  render();
+}
+function unapprove(id){ const t=TXNS.find(x=>x.id===id); if(t&&t.state==="approved") t.state="categorized"; render(); }
+function push(id){
+  const t = TXNS.find(x=>x.id===id);
+  if(t && t.state==="approved"){ t.state="posted"; t.qbo = "JE-" + (1050 + id); } // idempotent push (08)
+  render();
+}
+function retry(id){ const t=TXNS.find(x=>x.id===id); if(t&&t.state==="failed"){ t.state="posted"; t.qbo="JE-"+(1050+id); delete t.error;} render(); }
+
+/* ==================== VARIANT A — ledger table ==================== */
+let A_filter = "all";
+let A_sel = new Set();
+function renderA(root){
+  const filters = ["all", ...STATE_ORDER];
+  const rows = TXNS.filter(t => A_filter==="all" || t.state===A_filter);
+  const selApprovable = [...A_sel].map(id=>TXNS.find(t=>t.id===id)).filter(t=>t&&t.state==="categorized");
+  const selPushable   = [...A_sel].map(id=>TXNS.find(t=>t.id===id)).filter(t=>t&&t.state==="approved");
+  root.innerHTML = `
+    <h2 class="v">Variant A — Ledger table · bulk-first. Scan every row at once, multi-select, act from a sticky bar.</h2>
+    <div class="tabs" role="tablist">
+      ${filters.map(f=>`<div class="tab" role="tab" aria-selected="${A_filter===f}" data-f="${f}">
+        ${f==="all"?"All":STATE_LABEL[f]} <span class="c">${f==="all"?TXNS.length:count(f)}</span></div>`).join("")}
+    </div>
+    <table class="ledger">
+      <thead><tr>
+        <th style="width:26px"></th><th>Date</th><th>Transaction</th>
+        <th>Account (category side)</th><th class="num">Amount</th><th>State</th>
+      </tr></thead>
+      <tbody>
+      ${rows.map(t=>`
+        <tr class="${A_sel.has(t.id)?"sel":""}">
+          <td>${["categorized","approved"].includes(t.state)
+                ? `<input type="checkbox" data-sel="${t.id}" ${A_sel.has(t.id)?"checked":""} aria-label="select">` : ""}</td>
+          <td class="num">${fmtDate(t.date)}</td>
+          <td><div class="desc">${t.desc}</div><div class="sub">${t.payee}</div></td>
+          <td>
+            ${["posted"].includes(t.state)
+              ? `<span>${t.account}</span>`
+              : `<select data-acct="${t.id}" class="${t.account?"":"warn"}">
+                   <option value="" ${t.account?"":"selected"}>— uncategorised —</option>
+                   ${ACCOUNTS.map(a=>`<option ${a===t.account?"selected":""}>${a}</option>`).join("")}
+                 </select>`}
+            <div class="srcflag ${t.src}">${t.src==="rule"?"rule: "+t.rule : t.src==="manual"?"manual override" : "needs an Account"}</div>
+          </td>
+          <td class="num ${t.amount<0?"out":"in"}">${fmt(t.amount)}</td>
+          <td>${statePill(t.state)}${t.state==="posted"?`<div class="sub num">${t.qbo}</div>`:""}
+              ${t.state==="failed"?`<div class="sub out">${t.error}</div><button data-retry="${t.id}">Retry push</button>`:""}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="bulkbar">
+      <span>${A_sel.size} selected</span>
+      <button ${selApprovable.length?"":"disabled"} data-approvesel>Approve ${selApprovable.length||""} → build Journal Entries</button>
+      <button class="primary" ${selPushable.length?"":"disabled"} data-pushsel>Push ${selPushable.length||""} to QuickBooks</button>
+      <span class="bal">${A_sel.size?"balance ✓ (Dr = Cr each)":""}</span>
+    </div>`;
+  root.querySelectorAll("[data-f]").forEach(el=>el.onclick=()=>{A_filter=el.dataset.f; A_sel.clear(); render();});
+  root.querySelectorAll("[data-sel]").forEach(el=>el.onchange=()=>{ el.checked?A_sel.add(+el.dataset.sel):A_sel.delete(+el.dataset.sel); render(); });
+  root.querySelectorAll("[data-acct]").forEach(el=>el.onchange=()=>setAccount(+el.dataset.acct, el.value));
+  root.querySelectorAll("[data-retry]").forEach(el=>el.onclick=()=>retry(+el.dataset.retry));
+  const asel=root.querySelector("[data-approvesel]"); if(asel) asel.onclick=()=>{ selApprovable.forEach(t=>t.state="approved"); render(); };
+  const psel=root.querySelector("[data-pushsel]"); if(psel) psel.onclick=()=>{ selPushable.forEach(t=>{t.state="posted";t.qbo="JE-"+(1050+t.id);}); A_sel.clear(); render(); };
+}
+
+/* ==================== VARIANT B — focus queue ==================== */
+let B_cur = null;
+function renderB(root){
+  const queue = TXNS.filter(t=>["imported","categorized","approved"].includes(t.state));
+  if(B_cur==null || !queue.find(t=>t.id===B_cur)) B_cur = queue.length ? queue[0].id : null;
+  const t = TXNS.find(x=>x.id===B_cur);
+  const jeRows = t && t.account ? journalLines(t) : null;
+  root.innerHTML = `
+    <h2 class="v">Variant B — Focus queue · one transaction at a time, full Journal Entry preview, keyboard approve. Deliberate money-path review.</h2>
+    <div class="queue">
+      <div>
+        <div class="qlist">
+          ${queue.length? queue.map(x=>`
+            <div class="qitem" role="button" tabindex="0" aria-current="${x.id===B_cur}" data-cur="${x.id}">
+              <span>${x.desc.slice(0,18)}<div class="sub">${STATE_LABEL[x.state]}${x.account?"":" · needs Account"}</div></span>
+              <span class="num ${x.amount<0?"out":"in"}">${fmt(x.amount)}</span>
+            </div>`).join("") : `<div class="qitem muted">Queue empty — all reviewed.</div>`}
+          <div class="qcounts">
+            <span class="pill st-posted">${count("posted")} posted</span>
+            <span class="pill st-failed">${count("failed")} failed</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        ${!t ? `<p class="muted">Nothing left to review. ${count("approved")? "Approved entries are queued for push.":""}</p>` : `
+        <div class="big">${t.desc}</div>
+        <div class="meta">${fmtDate(t.date)}, 2025 · ${t.payee} · Bank Account Chase Checking</div>
+        <div class="meta">Amount <span class="num ${t.amount<0?"out":"in"}">${fmt(t.amount)}</span> — ${t.amount<0?"money out":"money in"}</div>
+        <div class="je">
+          <table>
+            <thead><tr><th>Line</th><th>Account</th><th class="amt">Debit</th><th class="amt">Credit</th></tr></thead>
+            <tbody>
+              ${jeRows ? jeRows.map(l=>`<tr><td>${l.dr?"Dr":"Cr"}</td><td>${l.acct}</td>
+                  <td class="amt num">${l.dr?fmt(l.dr):""}</td><td class="amt num">${l.cr?fmt(l.cr):""}</td></tr>`).join("")
+                : `<tr><td colspan="4" class="muted">Assign an Account to preview the Journal Entry.</td></tr>`}
+              ${jeRows?`<tr class="total"><td colspan="2">Totals <span class="balflag">balanced ✓</span></td>
+                  <td class="amt num">${fmt(jeRows[0].dr+jeRows[1].dr)}</td><td class="amt num">${fmt(jeRows[0].cr+jeRows[1].cr)}</td></tr>`:""}
+            </tbody>
+          </table>
+        </div>
+        <label class="muted">Account (category side)&nbsp;
+          <select data-bacct class="${t.account?"":"warn"}">
+            <option value="">— uncategorised —</option>
+            ${ACCOUNTS.map(a=>`<option ${a===t.account?"selected":""}>${a}</option>`).join("")}
+          </select>
+        </label>
+        <div class="srcflag ${t.src}" style="margin-top:.4rem">${t.src==="rule"?"auto-matched rule: "+t.rule : t.src==="manual"?"manual override (beats rules, survives re-run)":"no rule matched — assign manually"}</div>
+        <div class="approvebar">
+          ${t.state==="approved"
+            ? `<button class="primary" data-bpush>Push to QuickBooks →</button>
+               <button class="ghost" data-bunapprove>Un-approve</button>
+               <span class="muted">Journal Entry materialised, ${statePill("pending")} push</span>`
+            : `<button class="primary" ${t.account?"":"disabled"} data-bapprove>Approve &amp; next <kbd>⏎</kbd></button>
+               <button class="ghost" data-bskip>Skip <kbd>→</kbd></button>`}
+        </div>`}
+      </div>
+    </div>`;
+  const adv = ()=>{ const q=TXNS.filter(x=>["imported","categorized","approved"].includes(x.state)); const i=q.findIndex(x=>x.id===B_cur); B_cur = q.length?q[(i+1)%q.length].id:null; };
+  root.querySelectorAll("[data-cur]").forEach(el=>{ el.onclick=()=>{B_cur=+el.dataset.cur;render();}; el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){B_cur=+el.dataset.cur;render();}}; });
+  const ba=root.querySelector("[data-bacct]"); if(ba) ba.onchange=()=>setAccount(t.id, ba.value);
+  const bap=root.querySelector("[data-bapprove]"); if(bap) bap.onclick=()=>{ approve(t.id); };
+  const bsk=root.querySelector("[data-bskip]"); if(bsk) bsk.onclick=()=>{ adv(); render(); };
+  const bpu=root.querySelector("[data-bpush]"); if(bpu) bpu.onclick=()=>push(t.id);
+  const bun=root.querySelector("[data-bunapprove]"); if(bun) bun.onclick=()=>unapprove(t.id);
+}
+
+/* ==================== VARIANT C — pipeline board ==================== */
+function renderC(root){
+  const lane = s => TXNS.filter(t=>t.state===s);
+  const catz = lane("categorized"), appr = lane("approved");
+  root.innerHTML = `
+    <h2 class="v">Variant C — Pipeline board · the state machine made literal. Cards flow left→right; advance one card or a whole column.</h2>
+    <div class="board">
+      ${STATE_ORDER.map(s=>`
+        <div class="lane ${s==="failed"?"failed":""}">
+          <h3>${STATE_LABEL[s]} <span class="n">${count(s)}</span></h3>
+          <div class="cards">
+            ${lane(s).map(t=>`
+              <div class="kcard">
+                <div class="krow"><span class="kd">${t.desc.slice(0,20)}</span>
+                  <span class="num ${t.amount<0?"out":"in"}">${fmt(t.amount)}</span></div>
+                <div class="sub">${t.account || "no Account"} ${t.qbo?("· "+t.qbo):""}</div>
+                ${s==="imported"?`<button data-cassign="${t.id}">Assign Account…</button>`:""}
+                ${s==="categorized"?`<button class="primary" data-capprove="${t.id}">Approve →</button>`:""}
+                ${s==="approved"?`<button class="primary" data-cpush="${t.id}">Push →</button>`:""}
+                ${s==="failed"?`<div class="err">${t.error}</div><button data-cretry="${t.id}">Retry</button>`:""}
+              </div>`).join("") || `<div class="sub muted" style="padding:.4rem .6rem">—</div>`}
+          </div>
+          ${s==="categorized" && catz.length?`<div class="laneaction"><button data-approveall>Approve all ${catz.length}</button></div>`:""}
+          ${s==="approved" && appr.length?`<div class="laneaction"><button class="primary" data-pushall>Push all ${appr.length} →</button></div>`:""}
+        </div>`).join("")}
+    </div>
+    <p class="muted" style="margin-top:.8rem">Approve builds each Journal Entry (2 balanced lines); Push posts it to QuickBooks with an idempotent <code>requestid</code> so a retry never double-posts (ticket 08). Failed lane stays visible for manual re-push.</p>`;
+  root.querySelectorAll("[data-cassign]").forEach(el=>el.onclick=()=>{ const id=+el.dataset.cassign; const a=prompt("Account for this transaction:\n"+ACCOUNTS.join("\n"), ACCOUNTS[0]); if(a) setAccount(id, ACCOUNTS.includes(a)?a:ACCOUNTS[0]); });
+  root.querySelectorAll("[data-capprove]").forEach(el=>el.onclick=()=>approve(+el.dataset.capprove));
+  root.querySelectorAll("[data-cpush]").forEach(el=>el.onclick=()=>push(+el.dataset.cpush));
+  root.querySelectorAll("[data-cretry]").forEach(el=>el.onclick=()=>retry(+el.dataset.cretry));
+  const aa=root.querySelector("[data-approveall]"); if(aa) aa.onclick=()=>{ catz.forEach(t=>t.state="approved"); render(); };
+  const pa=root.querySelector("[data-pushall]"); if(pa) pa.onclick=()=>{ appr.forEach(t=>{t.state="posted";t.qbo="JE-"+(1050+t.id);}); render(); };
+}
+
+/* ==================== switcher ==================== */
+const VARIANTS = { A: ["Ledger table", renderA], B: ["Focus queue", renderB], C: ["Pipeline board", renderC] };
+const KEYS = Object.keys(VARIANTS);
+function current(){ const v = new URLSearchParams(location.search).get("variant"); return KEYS.includes(v)?v:"A"; }
+function render(){
+  const v = current();
+  document.getElementById("vlabel").textContent = `${v} — ${VARIANTS[v][0]}`;
+  VARIANTS[v][1](document.getElementById("root"));
+}
+function go(v){ const p=new URLSearchParams(location.search); p.set("variant",v); history.replaceState(null,"","?"+p); render(); }
+function cycle(d){ const i=KEYS.indexOf(current()); go(KEYS[(i+d+KEYS.length)%KEYS.length]); }
+document.getElementById("prev").onclick=()=>cycle(-1);
+document.getElementById("next").onclick=()=>cycle(1);
+document.addEventListener("keydown", e=>{
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(["input","textarea","select"].includes(tag) || e.target.isContentEditable) {
+    if(e.key==="Enter" && current()==="B"){ const b=document.querySelector("[data-bapprove]"); }  // let B's own handlers run
+    return;
+  }
+  if(e.key==="ArrowLeft") cycle(-1);
+  if(e.key==="ArrowRight"){ if(current()==="B"){ const s=document.querySelector("[data-bskip]"); if(s){s.click(); return;} } cycle(1); }
+  if(e.key==="Enter" && current()==="B"){ const a=document.querySelector("[data-bapprove]"); if(a && !a.disabled){ a.click(); } }
+});
+render();
+</script>
+</body>
+</html>

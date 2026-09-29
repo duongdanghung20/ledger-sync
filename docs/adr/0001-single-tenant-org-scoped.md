@@ -1,0 +1,3 @@
+# Single-tenant, Organization-scoped data model
+
+Each customer runs their own isolated Ledger-Sync instance via Docker Compose, and one instance serves exactly one Organization. Financial data is scoped to the Organization, not to individual Users; multiple Users with roles (Admin, Bookkeeper) share that data. We chose this over cross-customer multi-tenancy because self-hosting removes the need for tenant isolation and lets the data model omit a tenant discriminator entirely — a simplification that would be expensive to unwind if we later added SaaS multi-tenancy, so it is recorded here deliberately.

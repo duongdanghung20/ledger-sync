@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ledger}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ledger}
+      POSTGRES_DB: ${POSTGRES_DB:-ledger}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ledger} -d ${POSTGRES_DB:-ledger}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://ledger:ledger@db:5432/ledger}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+    env_file:
+      # Feature-ticket variables (see .env.example). Optional so the stack still
+      # comes up on defaults before an operator writes a .env.
+      - path: .env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    expose:
+      - "3000"
+
+  proxy:
+    image: caddy:2
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "${PROXY_PORT:-8080}:80"
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  db-data:

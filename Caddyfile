@@ -1,0 +1,17 @@
+# Single origin (APP_BASE_URL): the API and the frontend share one host.
+# /api/* goes to FastAPI (path preserved — backend routes live under /api),
+# everything else to Next.js. This same-origin setup is what the session-cookie
+# design in later tickets depends on.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

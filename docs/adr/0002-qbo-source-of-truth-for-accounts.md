@@ -1,0 +1,3 @@
+# QuickBooks Online is the source of truth for accounts
+
+The Chart of Accounts lives in QuickBooks Online, scoped per Book: each Book maps to exactly one QuickBooks company (`realmID`) that owns its accounts (see ADR-0003). Ledger-Sync fetches Accounts from that company and categorizes transactions directly into them, rather than maintaining a local Chart of Accounts mapped to QBO at export time. We picked this because the journal is exported to QBO regardless, and keeping two account lists in sync is a reconciliation problem on the money path (mismatched or stale mappings produce wrong postings). The trade-off is a hard dependency on a live QBO connection to categorize — accepted because categorization has no meaning without the accounts it targets.

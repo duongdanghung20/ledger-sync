@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — CSV import / column mapping / dedup (ticket 05)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 1.5rem; max-width: 1100px; }
+  h1 { font-size: 1.1rem; } h2 { font-size: 1rem; margin-top: 1.5rem; }
+  .banner { background: #b45309; color: #fff; padding: .4rem .7rem; border-radius: 6px; font-weight: 600; }
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .col { flex: 1 1 340px; min-width: 300px; }
+  textarea { width: 100%; box-sizing: border-box; font: 12px/1.4 ui-monospace, monospace; min-height: 150px; }
+  button { font: inherit; padding: .35rem .7rem; margin: .2rem .2rem .2rem 0; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; margin: .4rem 0; }
+  th, td { border: 1px solid #8888; padding: .2rem .4rem; text-align: left; vertical-align: top; }
+  .tag { font-size: 11px; padding: 0 .3rem; border-radius: 3px; }
+  .new { background: #16653433; } .dup { background: #99999933; color: #888; } .bad { background: #b4530933; }
+  .out { color: #b91c1c; } .in { color: #15803d; }
+  .muted { color: #888; } code { background: #8882; padding: 0 .2rem; border-radius: 3px; }
+  pre { background: #8881; padding: .5rem; border-radius: 6px; overflow: auto; font-size: 12px; }
+  .stat { display: inline-block; margin-right: 1rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<span class="banner">PROTOTYPE — throwaway. Answers ticket 05 (CSV import / mapping / dedup). Not production code.</span>
+<h1>CSV import: column-mapping profile + dedup, driven against sample bank exports</h1>
+<p class="muted">
+Canonical fields: <code>date</code> (ISO), <code>amount</code> (signed decimal, <strong>negative = money out</strong> of the Bank Account — matches ticket 04),
+<code>description</code>, optional <code>payee</code>, optional <code>external_id</code> (bank-provided unique row id).
+Every Imported Transaction is scoped to a Bank Account; dedup is per Bank Account.
+</p>
+
+<h2>1. Pick a sample (or paste your own)</h2>
+<div>
+  <button data-sample="chase">Chase — signed amount, MM/DD/YYYY, quoted commas, has coffee-twice</button>
+  <button data-sample="amex">Amex — separate Debit/Credit columns</button>
+  <button data-sample="eu">EU bank — semicolon, comma-decimal, external id</button>
+</div>
+
+<div class="row">
+  <div class="col">
+    <h2>CSV (raw bank export)</h2>
+    <textarea id="csv"></textarea>
+  </div>
+  <div class="col">
+    <h2>Column-Mapping Profile (saved per bank, per Book)</h2>
+    <textarea id="profile"></textarea>
+    <p class="muted">On real import, the profile is auto-suggested by matching the CSV <em>header signature</em> (its column-name set). <code>bank_account</code> is the profile default; user can override per import.</p>
+  </div>
+</div>
+
+<div>
+  <button id="import">Import this CSV</button>
+  <button id="reimport">Re-import SAME CSV again (dedup test — must skip all)</button>
+  <button id="reset">Reset imported store</button>
+</div>
+
+<h2>2. Last import result</h2>
+<div id="result" class="muted">— nothing imported yet —</div>
+
+<h2>3. Imported Transactions store (the durable state, per Bank Account)</h2>
+<div id="store" class="muted">— empty —</div>
+
+<h2 id="dedup-note">4. The dedup crux (read this)</h2>
+<div id="crux"></div>
+
+<script>
+// ---------- tiny RFC4180-ish CSV parser (handles quotes, embedded delim/newlines, CRLF) ----------
+// prod backend uses Python stdlib `csv`; hand-rolled here only to keep the prototype single-file/offline.
+function parseCSV(text, delim) {
+  const rows = []; let row = [], field = "", i = 0, q = false;
+  text = text.replace(/^﻿/, ""); // strip BOM
+  while (i < text.length) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else q = false; }
+      else field += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === delim) { row.push(field); field = ""; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === '\r') { /* skip, handled by \n */ }
+      else field += c;
+    }
+    i++;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== "")); // drop blank lines
+}
+
+// ---------- amount parsing: decimal style + parentheses-negative ----------
+function parseAmount(raw, decimal) {
+  let s = String(raw).trim();
+  if (s === "") return null;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  s = s.replace(/[^\d.,\-]/g, ""); // strip currency symbols/spaces
+  if (decimal === "comma") s = s.replace(/\./g, "").replace(",", "."); // 3.200,00 -> 3200.00
+  else s = s.replace(/,/g, ""); // 1,234.56 -> 1234.56
+  const n = parseFloat(s);
+  if (Number.isNaN(n)) return null;
+  return neg ? -Math.abs(n) : n;
+}
+
+// ---------- date parsing by explicit format ----------
+function parseDate(raw, fmt) {
+  const s = String(raw).trim();
+  let m, y, mo, d;
+  if (fmt === "YYYY-MM-DD") { m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null; [ , y, mo, d] = m; }
+  else if (fmt === "MM/DD/YYYY") { m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (!m) return null; [ , mo, d, y] = m; }
+  else if (fmt === "DD/MM/YYYY") { m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (!m) return null; [ , d, mo, y] = m; }
+  else return null;
+  mo = +mo; d = +d;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+
+// ---------- map raw rows -> canonical, collecting rejects ----------
+function mapRows(text, p) {
+  const rows = parseCSV(text, p.delimiter || ",");
+  const header = rows[p.header_row ?? 0].map(h => h.trim());
+  const idx = name => header.indexOf(name);
+  const body = rows.slice((p.header_row ?? 0) + 1, p.skip_trailing ? rows.length - p.skip_trailing : rows.length);
+  const good = [], bad = [];
+  for (const r of body) {
+    const get = name => name != null && idx(name) >= 0 ? r[idx(name)] : undefined;
+    const date = parseDate(get(p.date.column), p.date.format);
+    let amount = null;
+    if (p.amount.mode === "signed") {
+      amount = parseAmount(get(p.amount.column), p.decimal);
+      if (amount != null && p.amount.flip) amount = -amount;
+    } else { // debit_credit
+      const deb = parseAmount(get(p.amount.debit_column), p.decimal);
+      const cred = parseAmount(get(p.amount.credit_column), p.decimal);
+      if (deb != null) amount = -Math.abs(deb);      // debit column = money out
+      else if (cred != null) amount = Math.abs(cred); // credit column = money in
+    }
+    const description = (get(p.description.column) ?? "").trim();
+    const payee = p.payee ? (get(p.payee.column) ?? "").trim() : "";
+    const external_id = p.external_id ? (get(p.external_id.column) ?? "").trim() : "";
+    const reasons = [];
+    if (date == null) reasons.push("unparseable date");
+    if (amount == null) reasons.push("no/invalid amount");
+    if (!description) reasons.push("empty description");
+    if (reasons.length) bad.push({ raw: r.join(" | "), reasons });
+    else good.push({ date, amount, description, payee, external_id });
+  }
+  return { good, bad };
+}
+
+// ---------- dedup: content-key hash; multiset reconcile against existing ----------
+function contentKey(t) { return [t.date, t.amount.toFixed(2), t.description.toLowerCase(), t.payee.toLowerCase()].join("\u0001"); }
+
+const store = {}; // bankAccountId -> [canonical...]
+
+function importInto(bankAccountId, mapped) {
+  const existing = store[bankAccountId] || (store[bankAccountId] = []);
+  const usesExternalId = mapped.good.some(t => t.external_id);
+  const added = [], skipped = [];
+  if (usesExternalId) {
+    const seen = new Set(existing.map(t => t.external_id).filter(Boolean));
+    for (const t of mapped.good) {
+      if (t.external_id && seen.has(t.external_id)) { skipped.push(t); }
+      else { existing.push(t); added.push(t); if (t.external_id) seen.add(t.external_id); }
+    }
+  } else {
+    const avail = {}; // remaining existing rows matchable per content-key
+    for (const t of existing) avail[contentKey(t)] = (avail[contentKey(t)] || 0) + 1;
+    for (const t of mapped.good) {
+      const k = contentKey(t);
+      if (avail[k] > 0) { avail[k]--; skipped.push(t); } // matches an already-imported row -> re-export, skip
+      else { existing.push(t); added.push(t); }          // beyond existing multiplicity -> genuinely new
+    }
+  }
+  return { added, skipped, rejected: mapped.bad, usesExternalId };
+}
+
+// ---------- rendering ----------
+const $ = id => document.getElementById(id);
+function fmtAmt(a) { const c = a < 0 ? "out" : "in"; return `<span class="${c}">${a.toFixed(2)}</span>`; }
+function txTable(list, cls) {
+  if (!list.length) return "<em class='muted'>none</em>";
+  return `<table><tr><th>date</th><th>amount</th><th>description</th><th>payee</th><th>ext id</th></tr>` +
+    list.map(t => `<tr class="${cls||''}"><td>${t.date}</td><td>${fmtAmt(t.amount)}</td><td>${t.description}</td><td>${t.payee||'<span class=muted>—</span>'}</td><td>${t.external_id||'<span class=muted>—</span>'}</td></tr>`).join("") +
+    `</table>`;
+}
+function renderResult(res) {
+  $("result").innerHTML =
+    `<span class="stat new">added: ${res.added.length}</span>
+     <span class="stat dup">skipped (duplicate): ${res.skipped.length}</span>
+     <span class="stat bad">rejected (malformed): ${res.rejected.length}</span>
+     <span class="muted">dedup key: ${res.usesExternalId ? "external_id (bulletproof)" : "content hash + multiset match"}</span>
+     <h3 style="font-size:.9rem">Added</h3>${txTable(res.added,'new')}
+     <h3 style="font-size:.9rem">Skipped as duplicate</h3>${txTable(res.skipped,'dup')}
+     <h3 style="font-size:.9rem">Rejected (never imported, never silently dropped)</h3>` +
+     (res.rejected.length ? `<table><tr><th>raw row</th><th>why</th></tr>` +
+        res.rejected.map(b => `<tr class="bad"><td><code>${b.raw}</code></td><td>${b.reasons.join(", ")}</td></tr>`).join("") + `</table>` : "<em class='muted'>none</em>");
+}
+function renderStore() {
+  const banks = Object.keys(store);
+  if (!banks.length) { $("store").innerHTML = "— empty —"; return; }
+  $("store").innerHTML = banks.map(b => `<h3 style="font-size:.9rem">Bank Account: <code>${b}</code> (${store[b].length} transactions)</h3>${txTable(store[b])}`).join("");
+}
+
+// ---------- samples ----------
+const SAMPLES = {
+  chase: {
+    csv:
+`Details,Posting Date,Description,Amount,Type,Balance
+DEBIT,09/01/2026,"STARBUCKS STORE 123",-5.00,DEBIT_CARD,1000.00
+DEBIT,09/01/2026,"STARBUCKS STORE 123",-5.00,DEBIT_CARD,995.00
+CREDIT,09/02/2026,"PAYROLL DIRECT DEP",2500.00,ACH,3495.00
+DEBIT,09/03/2026,"AMAZON MKTPL, ORDER 111",-42.13,DEBIT_CARD,3452.87
+DEBIT,09/04/2026,,-9.99,DEBIT_CARD,3442.88`,
+    profile: {
+      name: "Chase Checking", bank_account: "chase-checking", delimiter: ",", decimal: "dot",
+      header_row: 0, date: { column: "Posting Date", format: "MM/DD/YYYY" },
+      description: { column: "Description" }, amount: { mode: "signed", column: "Amount", flip: false }
+    }
+  },
+  amex: {
+    csv:
+`Date,Description,Debit,Credit,Reference
+09/01/2026,UBER TRIP,12.50,,
+09/02/2026,REFUND UBER,,12.50,
+09/05/2026,WHOLE FOODS,88.20,,`,
+    profile: {
+      name: "Amex Card", bank_account: "amex-card", delimiter: ",", decimal: "dot",
+      header_row: 0, date: { column: "Date", format: "MM/DD/YYYY" },
+      description: { column: "Description" },
+      amount: { mode: "debit_credit", debit_column: "Debit", credit_column: "Credit" }
+    }
+  },
+  eu: {
+    csv:
+`Booking Date;Counterparty;Purpose;Amount;Transaction ID
+2026-09-01;Lidl;Groceries;-23,45;TX-001
+2026-09-01;Lidl;Groceries;-23,45;TX-002
+2026-09-03;Employer;Salary;3.200,00;TX-050`,
+    profile: {
+      name: "EU Giro", bank_account: "eu-giro", delimiter: ";", decimal: "comma",
+      header_row: 0, date: { column: "Booking Date", format: "YYYY-MM-DD" },
+      description: { column: "Purpose" }, payee: { column: "Counterparty" },
+      external_id: { column: "Transaction ID" },
+      amount: { mode: "signed", column: "Amount", flip: false }
+    }
+  }
+};
+function loadSample(k) { $("csv").value = SAMPLES[k].csv; $("profile").value = JSON.stringify(SAMPLES[k].profile, null, 2); }
+
+// ---------- wire up ----------
+document.querySelectorAll("[data-sample]").forEach(b => b.onclick = () => loadSample(b.dataset.sample));
+function doImport() {
+  let p; try { p = JSON.parse($("profile").value); } catch (e) { alert("Bad profile JSON: " + e.message); return; }
+  const mapped = mapRows($("csv").value, p);
+  const res = importInto(p.bank_account, mapped);
+  renderResult(res); renderStore();
+}
+$("import").onclick = doImport;
+$("reimport").onclick = doImport; // same CSV again -> should skip all
+$("reset").onclick = () => { for (const k in store) delete store[k]; renderStore(); $("result").innerHTML = "— reset —"; };
+
+$("crux").innerHTML = `
+<p>Content alone (date + amount + description) <strong>cannot</strong> distinguish "the same transaction re-exported in an overlapping file" from "two genuinely distinct identical transactions" (two $5 coffees, same day). The Chase sample has exactly this: two identical <code>STARBUCKS</code> rows.</p>
+<ul>
+  <li><strong>When the bank supplies a stable unique id</strong> (EU sample's <code>Transaction ID</code>): dedup on <code>external_id</code> alone. Bulletproof — both Lidl rows kept as distinct; re-import skips both. <em>Always prefer this.</em></li>
+  <li><strong>When it does not</strong> (Chase/Amex): dedup key = hash(date, amount, description, payee), reconciled as a <strong>multiset per Bank Account</strong>. An incoming row is a duplicate only if an already-imported row with the same key is still unmatched; extras beyond existing multiplicity are new. So: first import keeps both coffees; re-import of the same file skips both (no double-import); a later file that legitimately has a 3rd coffee adds one.</li>
+</ul>
+<p><strong>Known ceiling</strong> (<code>ponytail:</code>): without a bank unique id, a re-import that <em>drops then re-adds</em> identical rows across non-aligned windows is irreducibly ambiguous. Mitigation offered in profile: map a <code>Balance</code> or running-balance column as an extra key component when present (Chase sample has one). Recommend surfacing "N possible duplicates within this file" to the user rather than silently guessing.</p>
+<p><strong>Try it:</strong> load Chase → Import (2 coffees added) → Re-import (2 skipped, 0 added ✓). Load EU → Import (2 Lidl added via distinct ids) → Re-import (2 skipped ✓).</p>`;
+
+loadSample("chase");
+</script>
+</body>
+</html>

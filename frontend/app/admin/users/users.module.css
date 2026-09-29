@@ -1,0 +1,228 @@
+/* Admin Users — a ledger of access. Reuses the global ledger tokens
+   (--paper/--ink/--muted/--rule/--accent) so it reads as the same product;
+   scoped here so it never touches globals.css. */
+
+.wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 6rem) 1rem 5rem;
+}
+
+.back {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.4rem 0 0;
+}
+
+.intro {
+  margin: 0.7rem 0 2rem;
+  max-width: 34rem;
+  color: var(--muted);
+}
+
+/* Posting a new entry: fields on one ruled line, closed by a double rule. */
+.invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.field.grow {
+  flex: 1 1 16rem;
+}
+.field label {
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+
+/* Fields are ruled lines you write a value on, not boxes. */
+.input,
+.select {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0.4rem 0;
+  width: 100%;
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.4rem - 1px);
+}
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.select {
+  cursor: pointer;
+}
+
+.post {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.55rem 1.3rem;
+  cursor: pointer;
+}
+.post:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.post:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 1.6rem 0 0;
+}
+
+/* A freshly issued set-password link to hand over out of band. */
+.handoff {
+  margin: 1.6rem 0 0;
+  padding: 1rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.handoff p {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.handoff strong {
+  color: var(--ink);
+}
+.linkline {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  padding: 0.35rem 0;
+}
+
+/* The roster: each person an entry on the ledger. */
+.roster {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--rule);
+}
+.rosterHead {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 560;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.who {
+  font-weight: 560;
+  min-width: 12rem;
+  flex: 1 1 auto;
+}
+.you {
+  color: var(--muted);
+  font-weight: 400;
+}
+.status {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+.rowRole {
+  min-width: 8rem;
+}
+.rowActions {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+/* Text actions: verbs, not boxes. */
+.textbtn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0;
+  cursor: pointer;
+}
+.textbtn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.textbtn.danger {
+  color: #b0402f;
+}
+.textbtn:disabled {
+  color: var(--muted);
+  cursor: progress;
+}
+
+/* A revoked entry reads as voided. */
+.voided .who,
+.voided .status {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.error {
+  margin: 1.2rem 0 0;
+  color: #b0402f;
+  font-size: 0.95rem;
+}
+.muted {
+  color: var(--muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .textbtn.danger,
+  :global(:root:not([data-theme="light"])) .error {
+    color: #e6947f;
+  }
+}
+:global(:root[data-theme="dark"]) .textbtn.danger,
+:global(:root[data-theme="dark"]) .error {
+  color: #e6947f;
+}

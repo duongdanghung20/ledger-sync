@@ -1,0 +1,291 @@
+/* Import review — a bank statement reconciled onto the ledger: choose a file, a
+   mapping and an account, then read the result as ruled ledger rows closed by the
+   accounting double underline. Reuses the global ledger tokens
+   (--paper/--ink/--muted/--rule/--accent); scoped here, never touches globals.css. */
+
+.wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 6rem) 1rem 5rem;
+}
+
+.back {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.4rem 0 0;
+}
+
+.intro {
+  margin: 0.7rem 0 2rem;
+  max-width: 38rem;
+  color: var(--muted);
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.stateLead {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+.inlineLink {
+  color: var(--accent);
+}
+
+/* File pickup: a ruled line you drop a statement onto, not a dashed dropzone box. */
+.pickup {
+  margin-bottom: 1.6rem;
+}
+.fileField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.fileLabel {
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+.fileControl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.4rem 0;
+}
+.fileButton {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 560;
+  padding: 0.35rem 0.9rem;
+}
+.fileName {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The real input covers the row so the whole line is the target; kept accessible. */
+.fileInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.fileControl:focus-within {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.4rem - 1px);
+}
+
+/* Confirm: mapping and account on ruled lines, echoing the bank-accounts screen. */
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.75rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 16rem;
+}
+.field label {
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+.select {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  padding: 0.4rem 0;
+  width: 100%;
+  cursor: pointer;
+}
+.select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.4rem - 1px);
+}
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Closing the entry before the action: the accounting double underline. */
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 1.8rem 0 1.5rem;
+}
+
+.post {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+}
+.post:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.post:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.err {
+  margin: 1.2rem 0 0;
+  color: #b0402f;
+  font-size: 0.95rem;
+}
+
+/* The result: a small reconciliation, read down the ledger. */
+.result {
+  margin-top: 2.6rem;
+}
+.resultHead {
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4rem;
+}
+.ledger {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.35rem;
+  margin: 0;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+}
+.rowLabel {
+  font-weight: 560;
+  display: flex;
+  flex-direction: column;
+}
+.rowHint {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.leader {
+  flex: 1;
+  align-self: stretch;
+  min-width: 2rem;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+.rowValue {
+  margin: 0;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-size: 1.15rem;
+  font-weight: 600;
+  min-width: 2.5rem;
+  text-align: right;
+}
+.rowValue.zero {
+  color: var(--muted);
+}
+.rowValue.flagged {
+  color: #b0402f;
+}
+.ledgerClose {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+}
+
+/* Rejected rows: ruled off in red with their reasons, never a soft toast. */
+.rejects {
+  margin-top: 1.6rem;
+}
+.rejectsLead {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.rejectList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.reject {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0 0.6rem 0.85rem;
+  border-left: 3px solid #b0402f;
+  border-bottom: 1px dotted var(--rule);
+}
+.rejectReasons {
+  color: #b0402f;
+  font-weight: 560;
+  font-size: 0.92rem;
+}
+.rejectRaw {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .err,
+  :global(:root:not([data-theme="light"])) .rowValue.flagged,
+  :global(:root:not([data-theme="light"])) .rejectReasons {
+    color: #e6947f;
+  }
+  :global(:root:not([data-theme="light"])) .reject {
+    border-left-color: #e6947f;
+  }
+}
+:global(:root[data-theme="dark"]) .err,
+:global(:root[data-theme="dark"]) .rowValue.flagged,
+:global(:root[data-theme="dark"]) .rejectReasons {
+  color: #e6947f;
+}
+:global(:root[data-theme="dark"]) .reject {
+  border-left-color: #e6947f;
+}

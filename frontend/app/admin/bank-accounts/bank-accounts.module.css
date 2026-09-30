@@ -1,0 +1,202 @@
+/* Bank accounts — each real-world account is a ledger entry that posts to a
+   chart-of-accounts line: name .......... [ mapped account ]. Reuses the global
+   ledger tokens (--paper/--ink/--muted/--rule/--accent); scoped here so it never
+   touches globals.css. */
+
+.wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 6rem) 1rem 5rem;
+}
+
+.back {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.4rem 0 0;
+}
+
+.intro {
+  margin: 0.7rem 0 2rem;
+  max-width: 38rem;
+  color: var(--muted);
+}
+
+/* Terminal states (sign in / admin only / no targets). */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.stateLead {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Posting a new entry: fields on one ruled line, closed by a double rule. */
+.create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.field.grow {
+  flex: 1 1 14rem;
+}
+.field label {
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+
+/* Fields are ruled lines you write a value on, not boxes. */
+.input,
+.select {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0.4rem 0;
+  width: 100%;
+}
+.input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.4rem - 1px);
+}
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.select {
+  cursor: pointer;
+}
+
+.post {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.55rem 1.3rem;
+  cursor: pointer;
+}
+.post:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.post:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 1.6rem 0 0;
+}
+
+/* The roster: each bank account an entry posting to a ledger account. */
+.roster {
+  margin-top: 2.4rem;
+  border-top: 1px solid var(--rule);
+}
+.entry {
+  padding: 0.85rem 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.who {
+  font-weight: 560;
+  min-width: 10rem;
+}
+/* The dotted leader tying the bank account to the account it posts to. */
+.leader {
+  flex: 1;
+  align-self: stretch;
+  min-width: 2rem;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+.line .select {
+  flex: 0 1 20rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* A mapping that lost its account: ruled off in red, not a soft toast. */
+.attention {
+  margin: 0.5rem 0 0;
+  padding-left: 0.85rem;
+  border-left: 3px solid #b0402f;
+  color: #b0402f;
+  font-size: 0.9rem;
+}
+
+.inlineLink {
+  color: var(--accent);
+}
+
+.err {
+  margin: 1.2rem 0 0;
+  color: #b0402f;
+  font-size: 0.95rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .err,
+  :global(:root:not([data-theme="light"])) .attention {
+    color: #e6947f;
+  }
+  :global(:root:not([data-theme="light"])) .attention {
+    border-left-color: #e6947f;
+  }
+}
+:global(:root[data-theme="dark"]) .err,
+:global(:root[data-theme="dark"]) .attention {
+  color: #e6947f;
+}
+:global(:root[data-theme="dark"]) .attention {
+  border-left-color: #e6947f;
+}

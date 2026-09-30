@@ -1,0 +1,165 @@
+/* QuickBooks connection — the link to your books is itself an account on the ledger.
+   Reuses the global ledger tokens (--paper/--ink/--muted/--rule/--accent) so it reads
+   as the same product; scoped here so it never touches globals.css. */
+
+.wrap {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 6rem) 1rem 5rem;
+}
+
+.back {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.4rem 0 0;
+}
+
+.intro {
+  margin: 0.7rem 0 1.8rem;
+  max-width: 34rem;
+  color: var(--muted);
+}
+
+/* Closing the head of the page: the accounting double underline. */
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 0 0 2rem;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+}
+.stateLead {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.state .muted {
+  margin: -0.4rem 0 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The connection as a ledger account: label ..... value. */
+.ledger {
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+}
+.label {
+  font-weight: 560;
+}
+.leader {
+  flex: 1;
+  align-self: stretch;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+.value {
+  margin: 0;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.reconnectNote {
+  margin: 1.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* Primary action: an anchor that navigates the browser to the OAuth start. */
+.action {
+  display: inline-block;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.6rem 1.4rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.action:hover {
+  filter: brightness(1.06);
+}
+
+.inlineLink {
+  color: var(--accent);
+}
+
+/* Success / error banners left by the OAuth round-trip. */
+.ok,
+.err {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+.ok {
+  color: var(--accent);
+}
+.err {
+  color: #b0402f;
+}
+
+/* Disconnected: pushes are blocked. A ledger note ruled off in red, not a soft toast. */
+.blocked {
+  align-self: stretch;
+  padding: 0.9rem 1.1rem;
+  border-left: 3px solid #b0402f;
+  background: color-mix(in srgb, #b0402f 7%, transparent);
+}
+.blocked p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.blockedLead {
+  font-weight: 600;
+  margin-bottom: 0.3rem !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .err {
+    color: #e6947f;
+  }
+  :global(:root:not([data-theme="light"])) .blocked {
+    border-left-color: #e6947f;
+    background: color-mix(in srgb, #e6947f 10%, transparent);
+  }
+}
+:global(:root[data-theme="dark"]) .err {
+  color: #e6947f;
+}
+:global(:root[data-theme="dark"]) .blocked {
+  border-left-color: #e6947f;
+  background: color-mix(in srgb, #e6947f 10%, transparent);
+}

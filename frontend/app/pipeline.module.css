@@ -1,0 +1,184 @@
+/* Pipeline board — the queue as ruled columns, read left to right like posting
+   ledgers side by side. Lanes are separated by hairline rules, cards are plain
+   ruled slips (no rounding), and the failed lane carries the one flag colour.
+   Reuses the global ledger tokens; never touches globals.css. */
+
+.wrap {
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vh, 3rem) 1rem 5rem;
+}
+
+.board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(13rem, 1fr);
+  gap: 0;
+  overflow-x: auto;
+  border-top: 1px solid var(--ink);
+}
+
+.lane {
+  border-right: 1px solid var(--rule);
+  padding: 0.9rem 0.8rem 1.4rem;
+  min-width: 0;
+}
+.lane:last-child {
+  border-right: 0;
+}
+/* Failed sits apart — the flag colour marks its edge. */
+.lane_failed {
+  border-left: 2px solid #b0402f;
+}
+
+.laneHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.4rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+.laneTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.laneCount {
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.laneAction {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 560;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.laneAction:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.laneAction:disabled {
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.card {
+  border-bottom: 1px dotted var(--rule);
+  padding-bottom: 0.7rem;
+}
+.cardTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.cardDate {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.cardAmt {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 560;
+}
+.out {
+  color: var(--ink);
+}
+.in {
+  color: var(--accent);
+}
+.cardDesc {
+  margin: 0.25rem 0 0.4rem;
+  font-weight: 520;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+.cardAccount {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.cardError {
+  margin: 0 0 0.5rem;
+  color: #b0402f;
+  font-size: 0.8rem;
+}
+
+.picker {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0 0.4rem;
+  cursor: pointer;
+}
+.picker:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+}
+
+.advance {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 540;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.advance:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.advance:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .board {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+  .lane {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+}

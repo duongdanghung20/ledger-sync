@@ -1,0 +1,254 @@
+/* Focus queue — one transaction as a journal entry on a ledger page. The amount
+   is the hero; the two posting lines read label ..... value on dotted leaders,
+   closed by the accounting double rule, with the balance proved beneath.
+   Reuses the global ledger tokens; never touches globals.css. */
+
+.card {
+  max-width: 40rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pos {
+  font-weight: 560;
+  color: var(--ink);
+}
+.posOf {
+  color: var(--muted);
+  font-weight: 400;
+}
+.date {
+  font-variant-numeric: tabular-nums;
+}
+
+.desc {
+  margin: 0.6rem 0 0;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.payee {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+/* The hero figure. */
+.amount {
+  margin: 0.8rem 0 1.4rem;
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.out {
+  color: var(--ink);
+}
+.in {
+  color: var(--accent);
+}
+
+.accountRow {
+  margin-bottom: 1.2rem;
+}
+.accountLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-weight: 560;
+  font-size: 0.9rem;
+  color: var(--muted);
+  max-width: 20rem;
+}
+.picker {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+.picker:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+}
+.accountFixed {
+  color: var(--muted);
+}
+
+/* The two-line preview. */
+.entry {
+  margin: 0.4rem 0 1.4rem;
+}
+.lines {
+  margin: 0;
+}
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+}
+.side {
+  min-width: 3.6rem;
+  font-weight: 560;
+  color: var(--muted);
+}
+.acct {
+  margin: 0;
+  font-weight: 520;
+}
+.leader {
+  flex: 1;
+  align-self: stretch;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+.lineAmt {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 540;
+}
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin-top: 0.2rem;
+}
+.balanced {
+  margin: 0.6rem 0 0;
+  color: var(--accent);
+  font-weight: 560;
+}
+.unbalanced {
+  margin: 0.6rem 0 0;
+  color: #b0402f;
+  font-weight: 620;
+}
+.previewErr {
+  margin: 0.4rem 0 1.4rem;
+  color: #b0402f;
+}
+.previewHint {
+  margin: 0.4rem 0 1.4rem;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 2.4rem;
+}
+.approve {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.55rem 1.2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.approve:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.approve:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.kbd {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent);
+  padding: 0 0.35rem;
+  line-height: 1.4;
+}
+.blocked {
+  color: var(--muted);
+}
+.statusRow {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.badgeApproved {
+  font-weight: 560;
+  color: var(--ink);
+}
+.badgePosted {
+  font-weight: 560;
+  color: var(--accent);
+}
+.badgeFailed {
+  font-weight: 620;
+  color: #b0402f;
+}
+.errorText {
+  font-size: 0.85rem;
+  color: #b0402f;
+  max-width: 20rem;
+}
+.linkAction {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+.linkAction:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 1.8rem;
+  border-top: 1px dotted var(--rule);
+  padding-top: 1rem;
+}
+.step {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 540;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+.step:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

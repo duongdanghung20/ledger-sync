@@ -1,0 +1,329 @@
+/* Review — the dense working ledger. A bank statement being reconciled into a
+   QuickBooks journal, read as a ruled account book: tabular figures, dotted
+   column rules, state carried by weight and a single flag colour, the whole
+   sheet closed by the accounting double underline. Reuses the global ledger
+   tokens (--paper/--ink/--muted/--rule/--accent); scoped here, never touches
+   globals.css. */
+
+.wrap {
+  max-width: 66rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vh, 3rem) 1rem 5rem;
+}
+
+.masthead {
+  margin: 2rem 0 1.6rem;
+}
+.wordmark {
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  font-weight: 660;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0;
+}
+.statement {
+  margin: 0.5rem 0 0;
+  max-width: 40rem;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 2rem 0;
+}
+.stateLead {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.inlineLink {
+  color: var(--accent);
+}
+.err {
+  color: #b0402f;
+}
+
+/* State filter: ticks along a ruled line, the active one inked in. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0.9rem;
+}
+.tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 520;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tabActive {
+  color: var(--ink);
+  font-weight: 620;
+  border-bottom-color: var(--accent);
+}
+.tabCount {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tabActive .tabCount {
+  color: var(--accent);
+}
+
+/* Bulk actions sit on their own line above the sheet. */
+.bulkBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.bulk {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 560;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+.bulk:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.bulk:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.msgOk {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+.msgErr {
+  color: #b0402f;
+  font-size: 0.9rem;
+}
+
+/* The ledger sheet. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94rem;
+}
+.table thead th {
+  text-align: left;
+  font-weight: 560;
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  padding: 0 0.6rem 0.4rem;
+  border-bottom: 1px solid var(--ink);
+}
+.table tbody td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px dotted var(--rule);
+  vertical-align: top;
+}
+.table tbody tr:hover td {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.checkCol {
+  width: 1.8rem;
+  text-align: center;
+}
+.date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.detail {
+  min-width: 12rem;
+}
+.desc {
+  display: block;
+  font-weight: 520;
+}
+.payee {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.account {
+  min-width: 12rem;
+}
+/* Fields are ruled lines, not boxes — matching the auth ledger inputs. */
+.picker {
+  appearance: none;
+  width: 100%;
+  max-width: 15rem;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+.picker:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+}
+.accountFixed {
+  color: var(--muted);
+}
+
+.amountCol {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+.out {
+  color: var(--ink);
+}
+.in {
+  color: var(--accent);
+}
+
+.status {
+  min-width: 12rem;
+}
+.statusWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+/* State badges: weight and one flag colour, not a kit of coloured pills. */
+.badgeApproved {
+  font-weight: 560;
+  color: var(--ink);
+}
+.badgePosted {
+  font-weight: 560;
+  color: var(--accent);
+}
+.badgeFailed {
+  font-weight: 620;
+  color: #b0402f;
+}
+.errorText {
+  font-size: 0.82rem;
+  color: #b0402f;
+  max-width: 18rem;
+}
+.retryShortly {
+  font-size: 0.82rem;
+  color: #9a6b1f;
+}
+
+.action {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 540;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+.action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.linkAction {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+.linkAction:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+/* Posted rows recede — the work on them is done. */
+.row_posted td {
+  color: var(--muted);
+}
+.row_failed .desc {
+  color: #b0402f;
+}
+
+/* Closing the books: the accounting double underline under the sheet. */
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin-top: 0.2rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .table {
+    font-size: 0.88rem;
+  }
+  .table thead {
+    display: none; /* on phones the rows read as stacked entries */
+  }
+  .table tbody td {
+    display: block;
+    border-bottom: none;
+    padding: 0.15rem 0.6rem;
+  }
+  .table tbody tr {
+    display: block;
+    border-bottom: 1px dotted var(--rule);
+    padding: 0.5rem 0;
+  }
+  .amountCol {
+    text-align: left;
+  }
+}

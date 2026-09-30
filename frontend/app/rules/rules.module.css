@@ -1,0 +1,364 @@
+/* Categorization rules — a bookkeeper's rulebook: an ordered list of clauses read
+   top to bottom (first match wins), each closing on the account it posts to. Reuses
+   the global ledger tokens (--paper/--ink/--muted/--rule/--accent); scoped here,
+   never touches globals.css. */
+
+.wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 6rem) 1rem 5rem;
+}
+
+.back {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 1.4rem 0 0;
+}
+
+.intro {
+  margin: 0.7rem 0 2rem;
+  max-width: 40rem;
+  color: var(--muted);
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 1.6rem;
+}
+.stateLead {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+.inlineLink {
+  color: var(--accent);
+}
+
+/* The rulebook: numbered clauses on ruled lines. The number is the evaluation
+   order — genuinely a sequence, so it earns the numeral. */
+.rulebook {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.rule {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr auto;
+  align-items: start;
+  gap: 0.25rem 0.9rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.order {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.clause {
+  min-width: 0;
+}
+.clauseText {
+  margin: 0;
+  line-height: 1.55;
+}
+.when,
+.post {
+  color: var(--muted);
+}
+.and {
+  color: var(--muted);
+  font-style: italic;
+}
+.field {
+  font-weight: 560;
+}
+.op {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.val {
+  font-variant-numeric: tabular-nums;
+}
+.account {
+  font-weight: 600;
+  color: var(--accent);
+}
+.flag {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  color: #b0402f;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.icon {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.icon:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.textBtn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 560;
+  padding: 0.25rem 0.4rem;
+  cursor: pointer;
+}
+.textBtn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.textBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addBtn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 560;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+}
+.addBtn:hover {
+  background: var(--accent);
+  color: var(--paper);
+}
+
+/* The rule editor: conditions as ruled input lines, account chosen below. */
+.form {
+  border-top: 1px solid var(--ink);
+  padding-top: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+.formHead {
+  font-size: 1.15rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+}
+.formLabel {
+  font-weight: 560;
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+.condList {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+}
+.condRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+.select,
+.input {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0.35rem 0;
+}
+.select {
+  color: var(--accent);
+  cursor: pointer;
+}
+.input {
+  font-variant-numeric: tabular-nums;
+  min-width: 8rem;
+  flex: 1 1 8rem;
+}
+.select:focus,
+.input:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: calc(0.35rem - 1px);
+}
+.select:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.orHint {
+  margin: 0.3rem 0 1.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 22rem;
+  margin-bottom: 1.4rem;
+}
+.formField label {
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.run {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 580;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+}
+.run:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.run:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.close {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+  margin: 1.8rem 0 1.5rem;
+}
+.runBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.1rem;
+}
+.runHint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex: 1 1 16rem;
+}
+
+.err {
+  margin: 1rem 0 0;
+  color: #b0402f;
+  font-size: 0.95rem;
+}
+
+/* The result: a small reconciliation read down the ledger. */
+.result {
+  margin-top: 2.4rem;
+}
+.resultHead {
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4rem;
+}
+.ledger {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.35rem;
+  margin: 0;
+}
+.resRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+}
+.resLabel {
+  font-weight: 560;
+}
+.leader {
+  flex: 1;
+  align-self: stretch;
+  min-width: 2rem;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.28em);
+}
+.resValue {
+  margin: 0;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-size: 1.15rem;
+  font-weight: 600;
+  min-width: 2.5rem;
+  text-align: right;
+}
+.resValue.flagged {
+  color: #b0402f;
+}
+.ledgerClose {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  height: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .flag,
+  :global(:root:not([data-theme="light"])) .err,
+  :global(:root:not([data-theme="light"])) .resValue.flagged {
+    color: #e6947f;
+  }
+}
+:global(:root[data-theme="dark"]) .flag,
+:global(:root[data-theme="dark"]) .err,
+:global(:root[data-theme="dark"]) .resValue.flagged {
+  color: #e6947f;
+}

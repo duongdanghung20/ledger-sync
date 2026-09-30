@@ -1,0 +1,49 @@
+/* Shared nav: the wordmark, then section links along a single ruled line —
+   the header of a ledger page. Reuses the global ledger tokens; no globals edit. */
+
+.nav {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.home {
+  font-size: 1.05rem;
+  font-weight: 660;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.home:hover {
+  color: var(--accent);
+}
+
+.rule {
+  flex: 1;
+  min-width: 1rem;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1.1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link {
+  font-size: 0.92rem;
+  font-weight: 520;
+  color: var(--muted);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+.link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}

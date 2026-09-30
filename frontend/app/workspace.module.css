@@ -1,0 +1,48 @@
+/* View switcher — the tabbed edge of a ledger binder. Three index tabs a
+   Bookkeeper flips between; the open one is inked, the rest recede. Reuses the
+   global ledger tokens (--ink/--muted/--rule/--accent); never touches globals. */
+
+.switcher {
+  display: inline-flex;
+  gap: 0;
+  margin: 0 0 1.4rem;
+  border: 1px solid var(--rule);
+}
+
+.opt {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  border-top: 2px solid transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 540;
+  padding: 0.4rem 1.1rem;
+  cursor: pointer;
+}
+.opt:last-child {
+  border-right: 0;
+}
+.opt:hover {
+  color: var(--ink);
+}
+
+/* The open tab: inked label under an accent edge, on faint paper. */
+.optActive {
+  color: var(--ink);
+  font-weight: 620;
+  border-top-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+@media (max-width: 640px) {
+  .switcher {
+    display: flex;
+  }
+  .opt {
+    flex: 1;
+    text-align: center;
+    padding: 0.5rem 0.4rem;
+  }
+}

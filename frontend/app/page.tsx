@@ -1,30 +1,9 @@
-import { LedgerRow } from "../components/LedgerRow";
+import type { Metadata } from "next";
 
-const services = [
-  { label: "Web", value: "Next.js" },
-  { label: "API", value: "/api" },
-  { label: "Database", value: "PostgreSQL" },
-  { label: "Proxy", value: "one origin" },
-];
+import { ReviewWorkspace } from "./ReviewWorkspace";
+
+export const metadata: Metadata = { title: "Review · Ledger-Sync" };
 
 export default function Page() {
-  return (
-    <main className="page">
-      <header className="masthead">
-        <h1 className="wordmark">Ledger-Sync</h1>
-        <p className="statement">
-          Self-hosted. Bank CSV in, a balanced double-entry journal out, pushed to
-          QuickBooks Online.
-        </p>
-      </header>
-
-      <section className="ledger" aria-label="Running services">
-        {services.map((s) => (
-          <LedgerRow key={s.label} label={s.label} value={s.value} />
-        ))}
-        <div className="ledger-close" aria-hidden="true" />
-        <p className="ledger-caption">The books balance. Feature slices land on top.</p>
-      </section>
-    </main>
-  );
+  return <ReviewWorkspace />;
 }

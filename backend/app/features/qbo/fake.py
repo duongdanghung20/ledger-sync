@@ -8,9 +8,13 @@ Fidelity that ticket 11 (idempotency/retry) leans on:
 - refresh_token mints fresh (rotated) tokens.
 - `fail_next(...)` drives any call to return 4xx / 5xx / network / 429.
 
-A forced failure does NOT store the JE or record the requestid — so a
+By default a forced failure does NOT store the JE or record the requestid — so a
 first-attempt 5xx/network followed by a same-requestid retry yields exactly one
-entry, which is the retry scenario under test.
+entry. Two levers model the "created but the response was lost" money-path holes:
+- `fail_next(outcome, store_first=True)` stores the JE (under its DocNumber +
+  PrivateNote, keyed by requestid) AND returns the forced failure;
+- `crash_next_post()` stores the JE then RAISES — the process dies after the POST
+  reached QBO but before any DB commit, leaving the entry stranded `attempting`.
 """
 
 from __future__ import annotations
@@ -39,17 +43,32 @@ class FakeQboClient:
         self._accounts = accounts if accounts is not None else _default_accounts()
         self._journals: list[dict] = []                 # every created JE
         self._by_requestid: dict[tuple[str, str], dict] = {}  # (realm, rid) -> JE
-        self._forced: deque[Outcome] = deque()
+        self._forced: deque[tuple[Outcome, bool]] = deque()  # (outcome, store_first)
+        self._crash_next_post = False
         self._token_seq = 0
 
     # --- test controls ----------------------------------------------------
 
-    def fail_next(self, outcome: Outcome, times: int = 1) -> None:
-        """Force the next `times` call(s) to return `outcome` (non-OK)."""
-        self._forced.extend([outcome] * times)
+    def fail_next(self, outcome: Outcome, times: int = 1, store_first: bool = False) -> None:
+        """Force the next `times` call(s) to return `outcome` (non-OK).
+
+        With ``store_first=True`` a forced ``post_journal_entry`` still stores the
+        JE (created-but-response-lost) before returning the failure; the default
+        stores nothing.
+        """
+        self._forced.extend([(outcome, store_first)] * times)
+
+    def crash_next_post(self) -> None:
+        """The next ``post_journal_entry`` stores the JE then raises — models a
+        process death after the POST reached QBO but before any DB commit."""
+        self._crash_next_post = True
+
+    def _pop_forced(self) -> tuple[Outcome, bool] | None:
+        return self._forced.popleft() if self._forced else None
 
     def _forced_outcome(self) -> Outcome | None:
-        return self._forced.popleft() if self._forced else None
+        forced = self._pop_forced()
+        return forced[0] if forced is not None else None
 
     # --- port -------------------------------------------------------------
 
@@ -76,19 +95,13 @@ class FakeQboClient:
             return QboResult.of(forced, error=f"forced {forced.value}")
         return QboResult.of(Outcome.OK, data=list(self._accounts))
 
-    async def post_journal_entry(
-        self, connection: Connection, entry: Entry, requestid: str
-    ) -> QboResult:
-        forced = self._forced_outcome()
-        if forced is not None:
-            # No store, no replay record: the caller retries with the same id.
-            return QboResult.of(forced, error=f"forced {forced.value}")
-
+    def _store_je(self, connection: Connection, entry: Entry, requestid: str) -> dict:
+        """Create (or replay) the JE for (realm, requestid). Same store the OK path
+        uses, so a stored-then-failed POST is indistinguishable from a real one:
+        query-by-DocNumber finds it and a same-requestid retry replays it (no dup)."""
         key = (connection.realm_id, requestid)
         if key in self._by_requestid:
-            # Replay: same requestid -> same JE, no second entry created.
-            return QboResult.of(Outcome.OK, data=self._by_requestid[key])
-
+            return self._by_requestid[key]  # replay: same requestid -> same JE
         je = {
             "Id": str(len(self._journals) + 1),
             "DocNumber": entry.doc_number,
@@ -107,7 +120,26 @@ class FakeQboClient:
         }
         self._journals.append(je)
         self._by_requestid[key] = je
-        return QboResult.of(Outcome.OK, data=je)
+        return je
+
+    async def post_journal_entry(
+        self, connection: Connection, entry: Entry, requestid: str
+    ) -> QboResult:
+        if self._crash_next_post:
+            # Created in QBO, then the process dies before recording the outcome.
+            self._crash_next_post = False
+            self._store_je(connection, entry, requestid)
+            raise RuntimeError("simulated process death: POST reached QBO, no commit")
+
+        forced = self._pop_forced()
+        if forced is not None:
+            outcome, store_first = forced
+            if store_first:
+                # Created-but-response-lost: the JE exists, the caller saw a failure.
+                self._store_je(connection, entry, requestid)
+            return QboResult.of(outcome, error=f"forced {outcome.value}")
+
+        return QboResult.of(Outcome.OK, data=self._store_je(connection, entry, requestid))
 
     async def find_journal_entry_by_doc_number(
         self, connection: Connection, doc_number: str
